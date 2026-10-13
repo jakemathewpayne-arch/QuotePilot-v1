@@ -150,7 +150,7 @@ const patterns={
 function normalize(text){return text.toLowerCase().replace(/[!?.,]/g,' ').replace(/\s+/g,' ').trim()}
 function choose(options){return options[questionCount%options.length]}
 function remember(user,answer){conversation.turns.push({user,answer});if(conversation.turns.length>10)conversation.turns.shift();lastReply=answer;questionCount++;speak(answer)}
-const demoBookings={};
+const demoBookings={};try{const prior=JSON.parse(localStorage.getItem('quotepilot-appointments-v1')||'{}');for(const [day,slots] of Object.entries(prior))if(/^\d{4}-\d{2}-\d{2}$/.test(day)&&Array.isArray(slots))demoBookings[day]=slots.filter(x=>Number.isInteger(x)&&x>=0&&x<1440)}catch(e){}function saveAppointments(){try{localStorage.setItem('quotepilot-appointments-v1',JSON.stringify(demoBookings))}catch(e){}}
 const availabilityOverrides={};
 try{const cached=JSON.parse(localStorage.getItem('quotepilot-demo-hours')||'{}');for(const [key,value] of Object.entries(cached))if(/^\d{4}-\d{2}-\d{2}$/.test(key)&&Array.isArray(value))availabilityOverrides[key]=value}catch(e){}
 function saveHours(){try{localStorage.setItem('quotepilot-demo-hours',JSON.stringify(availabilityOverrides))}catch(e){}}
@@ -226,7 +226,7 @@ function spokenRange(text){const v=normalize(text);const m=v.match(/\b(?:from|be
 function ownerBlocks(raw){const v=normalize(raw);if(!/\b(not available|unavailable|blocked|block off|block out|busy|can't work|cannot work|closed)\b/.test(v))return null;const day=demoDay(raw);if(!day)return "Sure. Which day do you want me to block off?";const range=spokenRange(raw)||[usualOpen,usualClose];if(!closedBlocks[day])closedBlocks[day]=[];closedBlocks[day].push(range);saveClosed();$('mockDate').value=day;renderDemo();return "Got it! I've blocked "+timeLabel(range[0])+" to "+timeLabel(range[1])+" on "+day+" in your QuotePilot calendar."}
 function booked(day,time){return (demoBookings[day]||[]).includes(time)}
 function available(day,time){const d=new Date(day+'T12:00:00');if(Number.isNaN(+d))return false;const today=dayKey(new Date());return day>=today&&time%30===0&&(Object.prototype.hasOwnProperty.call(availabilityOverrides,day)?availabilityOverrides[day].some(([a,b])=>time>=a&&time+30<=b):(time>=usualOpen&&time+30<=usualClose))&&!booked(day,time)&&!(closedBlocks[day]||[]).some(([a,b])=>time<b&&time+30>a)}
-function nextSlot(day,time){for(let t=Math.max(540,Math.ceil((time+60)/60)*60);t<1020;t+=60)if(available(day,t))return t;for(let t=Math.floor(usualOpen/60)*60;t<usualClose;t+=60)if(t!==time&&available(day,t))return t;return null}
+function nextSlot(day,time){for(let t=Math.max(usualOpen,Math.ceil((time+60)/60)*60);t<usualClose;t+=60)if(available(day,t))return t;for(let t=Math.floor(usualOpen/60)*60;t<usualClose;t+=60)if(t!==time&&available(day,t))return t;return null}
 function renderDemo(){
  const el=$('mockDate');if(!el)return;
  const day=el.value||dayKey(new Date());el.value=day;
@@ -241,7 +241,7 @@ function demoBookingResponse(raw){
  const no=/\b(no|nope|nah|doesn't work|does not work|can't do|cannot do|another time|something else)\b/.test(v);
  const yes=/\b(yes|yep|yeah|sure|sounds good|that works|book it|please do|go ahead|perfect|okay)\b/.test(v);
  if(offer&&no){const old=offer.time;const alt=nextSlot(offer.day,old);if(alt===null)return "No problem. That day's looking pretty full. Would another day suit you?";offer.time=alt;renderDemo();return "No worries. How about "+timeLabel(alt)+" instead?";}
- if(offer&&yes&&time===null){if(!available(offer.day,offer.time)){const alt=nextSlot(offer.day,offer.time);if(alt===null)return "Sorry, that slot has just become unavailable. Could we try another day?";offer.time=alt;return "That time is taken now. How about "+timeLabel(alt)+"?";}if(!demoBookings[offer.day])demoBookings[offer.day]=[];demoBookings[offer.day].push(offer.time);const bookedText="All set — I've added a "+offer.service+" demo appointment for "+offer.day+" at "+timeLabel(offer.time)+". It's only in this example calendar, not Google Calendar.";conversation.intent='casual';offer=null;renderDemo();return bookedText}
+ if(offer&&yes&&time===null){if(!available(offer.day,offer.time)){const alt=nextSlot(offer.day,offer.time);if(alt===null)return "Sorry, that slot has just become unavailable. Could we try another day?";offer.time=alt;return "That time is taken now. How about "+timeLabel(alt)+"?";}if(!demoBookings[offer.day])demoBookings[offer.day]=[];demoBookings[offer.day].push(offer.time);saveAppointments();const bookedText="All set — I've added a "+offer.service+" demo appointment for "+offer.day+" at "+timeLabel(offer.time)+". It's only in this example calendar, not Google Calendar.";conversation.intent='casual';offer=null;renderDemo();return bookedText}
  if(!hasBooking&&time===null)return null;
  conversation.intent='calendar';
  const service=/\bwood|restock\b/.test(v)?'wood restock':offer?.service||$('mockService')?.value||'appointment';
@@ -251,7 +251,7 @@ function demoBookingResponse(raw){
  if(!available(date,time)){const alt=nextSlot(date,time);offer=alt===null?null:{day:date,time:alt,service};conversation.step='offer';return alt===null?"Sorry, "+date+" is fully booked in this demo. Do you have another day in mind?":"Sorry, "+timeLabel(time)+" isn't available on "+date+". I can do "+timeLabel(alt)+" instead. Would you like me to book that in?";}
  offer={day:date,time,service};conversation.step='offer';return timeLabel(time)+" on "+date+" is available for a "+service+". Would you like me to book that in?";
 }
-$('mockDate').value=dayKey(new Date());$('mockDate').onchange=renderDemo;$('resetMock').onclick=()=>{for(const k of Object.keys(demoBookings))delete demoBookings[k];for(const k of Object.keys(availabilityOverrides))delete availabilityOverrides[k];for(const k of Object.keys(closedBlocks))delete closedBlocks[k];saveClosed();saveHours();offer=null;conversation.intent='casual';renderDemo();$('mockInfo').textContent='Example appointments reset.'};renderDemo();
+$('mockDate').value=dayKey(new Date());$('mockDate').onchange=renderDemo;$('resetMock').onclick=()=>{for(const k of Object.keys(demoBookings))delete demoBookings[k];saveAppointments();for(const k of Object.keys(availabilityOverrides))delete availabilityOverrides[k];for(const k of Object.keys(closedBlocks))delete closedBlocks[k];saveClosed();saveHours();offer=null;conversation.intent='casual';renderDemo();$('mockInfo').textContent='Example appointments reset.'};renderDemo();
 function reply(text){
  const v=normalize(text),has=(key)=>patterns[key].test(v);
  const nm=text.match(patterns.name);
