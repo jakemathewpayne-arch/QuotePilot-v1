@@ -176,7 +176,7 @@ function demoTime(text){
 function timeLabel(min){const h=Math.floor(min/60),m=min%60;return (h%12||12)+(m?':'+String(m).padStart(2,'0'):'')+(h<12?' AM':' PM')}
 function booked(day,time){return (demoBookings[day]||[]).includes(time)||time===900}
 function available(day,time){const d=new Date(day+'T12:00:00');if(Number.isNaN(+d))return false;const today=dayKey(new Date());return day>=today&&time>=540&&time<1020&&time%30===0&&!booked(day,time)}
-function nextSlot(day,time){for(let t=Math.max(540,Math.ceil((time+30)/30)*30);t<1020;t+=30)if(available(day,t))return t;for(let t=540;t<time;t+=30)if(available(day,t))return t;return null}
+function nextSlot(day,time){for(let t=Math.max(540,Math.ceil((time+60)/60)*60);t<1020;t+=60)if(available(day,t))return t;for(let t=540;t<1020;t+=60)if(t!==time&&available(day,t))return t;return null}
 function renderDemo(){
  const el=$('mockDate');if(!el)return;
  const day=el.value||dayKey(new Date());el.value=day;
