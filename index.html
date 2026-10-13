@@ -307,7 +307,7 @@ $('sampleBooking').onclick=()=>{
  $('setupNotice').textContent='Google Calendar event editor opened. Review the sample appointment before saving it.';
 };
 let googleToken=null,googleExpires=0,googleCalendarEvents=[];
-const googleScope='https://www.googleapis.com/auth/calendar.events';
+const googleScope='https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.calendarlist.readonly';
 function googleStatus(t){$('connectNotice').textContent=t}
 $('oauthClientId').value=localStorage.getItem('quotepilot-google-client-id')||'';
 $('saveOAuthClient').onclick=()=>{const v=$('oauthClientId').value.trim();if(!/^[0-9]+-[a-z0-9]+\.apps\.googleusercontent\.com$/i.test(v)){googleStatus('That does not look like a Google OAuth Web Client ID.');return}localStorage.setItem('quotepilot-google-client-id',v);googleStatus('Client ID saved. You can now use Continue with Google.')};
