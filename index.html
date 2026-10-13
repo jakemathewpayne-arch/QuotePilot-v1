@@ -190,7 +190,7 @@ function demoBookingResponse(raw){
  const time=demoTime(raw);
  const no=/\b(no|nope|nah|doesn't work|does not work|can't do|cannot do|another time|something else)\b/.test(v);
  const yes=/\b(yes|yep|yeah|sure|sounds good|that works|book it|please do|go ahead|perfect|okay)\b/.test(v);
- if(offer&&no&&!hasBooking&&time===null){const old=offer.time;const alt=nextSlot(offer.day,old);if(alt===null)return "No problem. That day's looking pretty full. Would another day suit you?";offer.time=alt;renderDemo();return "No worries. How about "+timeLabel(alt)+" instead?";}
+ if(offer&&no){const old=offer.time;const alt=nextSlot(offer.day,old);if(alt===null)return "No problem. That day's looking pretty full. Would another day suit you?";offer.time=alt;renderDemo();return "No worries. How about "+timeLabel(alt)+" instead?";}
  if(offer&&yes&&time===null){if(!available(offer.day,offer.time)){const alt=nextSlot(offer.day,offer.time);if(alt===null)return "Sorry, that slot has just become unavailable. Could we try another day?";offer.time=alt;return "That time is taken now. How about "+timeLabel(alt)+"?";}if(!demoBookings[offer.day])demoBookings[offer.day]=[];demoBookings[offer.day].push(offer.time);const bookedText="All set — I've added a "+offer.service+" demo appointment for "+offer.day+" at "+timeLabel(offer.time)+". It's only in this example calendar, not Google Calendar.";conversation.intent='casual';offer=null;renderDemo();return bookedText}
  if(!hasBooking&&time===null)return null;
  conversation.intent='calendar';
