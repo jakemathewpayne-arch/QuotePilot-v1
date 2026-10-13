@@ -78,77 +78,81 @@ function speak(t){
  }catch(e){note('Speaker: '+e.message);finished(n)}
 }
 let lastTopic='',callerName='',questionCount=0,lastReply='',pitchGiven=false,declined=false;
-function choose(options){const next=options[questionCount%options.length];return next===lastReply?options[(questionCount+1)%options.length]:next}
-function reply(t){
- const v=t.toLowerCase().replace(/[!?.,]/g,' ').replace(/\s+/g,' ').trim();
- const has=(r)=>r.test(v);let answer='';
- const nameMatch=t.match(/(?:my name is|this is|i'm called|call me)\s+([a-z]{2,18})/i);
- if(nameMatch)callerName=nameMatch[1];
+let conversation={intent:'',step:'',service:'',date:'',contact:'',lastQuestion:'',greeted:false,turns:[]};
+const patterns={
+ stop:/\b(stop (selling|pitching|asking)|not interested|no thanks|leave me alone|don't (want|need) (this|it)|do not (want|need) (this|it))\b/,
+ goodbye:/\b(goodbye|bye bye|bye|see you|gotta go|have to go|hang up|that's everything)\b/,
+ purchase:/\b(sign up|subscribe|how (do|can) i (buy|get|purchase)|want (to buy|this for my business)|i'm interested|i am interested|pricing plans|how much is quotepilot)\b/,
+ demo:/\b(is this (a |the )?demo|is this real|are you (a |an )?ai|are you (a )?robot|are you (a )?person|who (are you|am i speaking to))\b/,
+ benefits:/\b(why (should|would) i (use|buy)|benefits|sell me|convince me|what (does|can) (quotepilot|this) do|save (me |us )?time|how does it work)\b/,
+ quote:/\b(quote|quotation|estimate|pricing for|price of|cost of|how much (would|will|does|to)|get a price)\b/,
+ booking:/\b(book|booking|appointment|schedule|reserve|availability|available (on|for|at))\b/,
+ human:/\b(talk|speak) to (a |an )?(human|person|staff|manager)|real person|call me back\b/,
+ hours:/\b(opening hours|what time (do you|are you) open|when (are you|do you) close|open today|open tomorrow)\b/,
+ askWell:/\b(how are you|how's it going|how are things|how about you|what about you|and you|how you doing)\b/,
+ good:/\b(i'm|i am|doing|feeling) (good|fine|great|well|alright|okay|ok)|\b(pretty good|not bad|all good)\b/,
+ bad:/\b(not great|not good|rough day|bad day|terrible|stressed|having a hard time)\b/,
+ small:/^(oh |ah |well )?(not (too |a whole )?much|nothing much|nothing really|not much|just chilling|just browsing|just looking|just testing( it)?|just checking (it |this )?out|only testing|nothing in particular)( thanks| thank you)?$/,
+ thanks:/\b(thanks|thank you|cheers|appreciate it)\b/,
+ greet:/^(hi|hey|hello|hiya|yo|g'day|good morning|good afternoon|good evening)( there)?$/,
+ yes:/^(yes|yep|yeah|sure|okay|ok|sounds good|that works|definitely|absolutely|please do|go ahead)$/,
+ no:/^(no|nope|nah|not really|no thank you|not now|maybe later)$/,
+ repeat:/\b(say that again|repeat that|what did you say|pardon|didn't catch that|say again)\b/,
+ date:/\b(today|tomorrow|next week|this week|next month|monday|tuesday|wednesday|thursday|friday|saturday|sunday|morning|afternoon|evening)\b/,
+ name:/\b(my name is|call me|i'm called|this is)\s+([a-z]{2,20})\b/i
+};
+function normalize(text){return text.toLowerCase().replace(/[!?.,]/g,' ').replace(/\s+/g,' ').trim()}
+function choose(options){return options[questionCount%options.length]}
+function remember(user,answer){conversation.turns.push({user,answer});if(conversation.turns.length>10)conversation.turns.shift();lastReply=answer;questionCount++;speak(answer)}
+function reply(text){
+ const v=normalize(text),has=(key)=>patterns[key].test(v);
+ const nm=text.match(patterns.name);
+ if(nm)callerName=nm[2];
  const who=callerName?', '+callerName:'';
- const askedHow=has(/\b(how are you|how's it going|how are things|how about you|and you|what about you|you doing alright)\b/);
- const sharedGood=has(/\b(i'm good|i am good|i'm fine|i am fine|doing well|pretty good|not bad|all good|i'm great|i am great)\b/);
- const sharedBad=has(/\b(not great|not good|rough day|bad day|feeling down)\b/);
- const businessQuestion=has(/\b(quote|pricing|price|estimate|cost|booking|book|appointment|schedule)\b/);
-
- // Respond to what someone actually said before asking for business details.
- if(/\b(stop selling|not interested|don't want to buy|do not want to buy|no thanks|stop pitching)\b/.test(v)){declined=true;answer="No worries at all. We can just chat, or you can end the demo whenever you're ready.";}
- else if(/\b(why should i use|why would i use|sell me|convince me|what are the benefits|what can you do for my business|do i need this|tell me about quotepilot)\b/.test(v)){pitchGiven=true;answer="Great question. Think of how often you have to stop what you're doing to answer a routine call. QuotePilot is designed to greet callers and collect the important details, so you can focus on running your business. Would that be useful for you?";}
- else if(/\b(are you a demo|is this a demo|is this real|what is this demo)\b/.test(v)){answer="Yep! This is a QuotePilot demonstration. I'm showing you how a virtual receptionist could greet your customers, answer common questions and take enquiries. Want to hear what it could do for your business?";}
- else if(/\b(sign up|how do i buy|how can i buy|get this for my business|i'm interested|i want this|where can i subscribe)\b/.test(v)){answer="Glad you're interested! The business service isn't available for checkout in this demo yet. The website will show how to enquire when it's ready.";}
- else if(!businessQuestion && /^(oh |ah |well )?(not (too |a whole )?much|nothing much|not really much|nothing really|just chilling|just browsing|just looking|nothing in particular|no reason|just checking (it |this )?out|just testing( it)?|only testing|just having a look|i'm just looking|i am just looking|i'm just testing|i am just testing)( thanks| thank you)?$/.test(v)){
-   answer=choose(["No worries at all! Feel free to have a look around, or ask me anything about the demo.","All good! You can just have a chat with me if you like.","That's totally fine. I'm here if you want to try anything out."]);
-   lastTopic='';
+ let answer='',intent=conversation.intent;
+ const hasBusiness=has('quote')||has('booking')||has('purchase')||has('benefits');
+ if(has('repeat')){answer=lastReply||"Of course. I'm QuotePilot, and this is a demonstration. What would you like to try?";}
+ else if(has('stop')){declined=true;conversation.intent='casual';answer="No problem at all. I won't bring up the sales side again. Feel free to chat or end the demo whenever you like.";}
+ else if(has('goodbye')){answer="Thanks for chatting"+who+". Have a lovely day!";conversation.intent='closing';}
+ else if(has('purchase')){conversation.intent='purchase';pitchGiven=true;answer="Great to hear you're interested! This is still a test version, so there's no live checkout yet. Would you like to know what the finished service is planned to do?";}
+ else if(has('benefits')){conversation.intent='product';pitchGiven=true;answer="The idea is to take routine calls off your plate: greeting customers, collecting job details, and helping with enquiries. The finished service would be tailored to your business. What's the biggest time-waster in your day?";}
+ else if(has('demo')){conversation.intent='product';answer="Yep, I'm QuotePilot, a virtual receptionist demo. I can show you how the conversation might feel, but I'm not connected to a real business yet. What would you like to try?";}
+ else if(has('human')){answer="Of course. A real deployment could pass a message to someone on your team. Who would you like to reach?";}
+ else if(has('hours')){answer="I haven't been given real business opening hours in this demo, so I don't want to guess. Is there something else I can help with?";}
+ else if(has('quote')){conversation.intent='quote';conversation.step='service';answer="Yeah, absolutely. What kind of work do you need a quote for?";}
+ else if(has('booking')){conversation.intent='booking';conversation.step='service';answer="Sure thing. What would you like to book?";}
+ else if(has('askWell')&&has('good')){conversation.intent='casual';answer="I'm good too, thanks for asking! Glad you're doing well. What's on your mind?";}
+ else if(has('askWell')&&has('bad')){conversation.intent='casual';answer="I'm doing alright, thanks for asking. Sorry things have been a bit rough. Anything I can help with?";}
+ else if(has('askWell')){conversation.intent='casual';answer="I'm good thanks! How's your day going?";}
+ else if(has('small')){conversation.intent='casual';answer=choose(["No worries! We can just chat if you like.","All good. Feel free to try asking me anything.","Fair enough! I'm here if you want to test something out."]);}
+ else if(has('bad')){conversation.intent='casual';answer="Ah, sorry to hear that. Hope things pick up. Would you like to talk about it?";}
+ else if(has('good')){conversation.intent='casual';answer="Glad to hear it! What's happening today?";}
+ else if(has('greet')){conversation.intent='casual';answer=choose(["Hey, how are you?","Hi there, how's your day going?","Hey! Good to hear from you."]);}
+ else if(has('thanks')){answer=choose(["No worries at all!","You're welcome"+who+"!","Of course, happy to help!"]);}
+ else if(nm){answer="Nice to meet you, "+callerName+"! What would you like to talk about?";}
+ else if(has('no')){if(intent==='product'||intent==='purchase'){declined=true;answer="No pressure at all. Thanks for giving the demo a go.";}else if(intent==='quote'||intent==='booking'){answer="No worries. What would suit you better?";}else{answer="All good, no worries!";}}
+ else if(has('yes')){if(intent==='product'||intent==='purchase'){answer="Great. For example, QuotePilot could ask callers what they need and collect the details before you call them back. Do you get many enquiries in a typical day?";pitchGiven=true;}else if(intent==='quote'){answer="Perfect. Can you tell me a little about the job?";}else if(intent==='booking'){answer="Great. What day would work best for you?";}else{answer="Sounds good!";}}
+ else if(intent==='quote'){
+   if(conversation.step==='service'){conversation.service=text;conversation.step='date';answer="Got it. And when were you hoping to get that done?";}
+   else if(conversation.step==='date'){conversation.date=text;conversation.step='contact';answer="Okay, that helps. What's the best way for someone to get back to you with a quote?";}
+   else if(conversation.step==='contact'){conversation.contact=text;conversation.step='done';answer="Thanks, I've got the details for this demo. Just so you know, nothing has been sent to a real business yet.";}
+   else answer="Sure. Would you like to tell me about a different job?";
  }
- else if(askedHow && sharedGood && !businessQuestion){answer="I'm good too, thanks for asking! So, what can I help you with?";}
- else if(askedHow && sharedBad && !businessQuestion){answer="I'm doing alright, thanks for asking. Sorry your day's been rough. Is there something I can help with?";}
- else if(askedHow && !businessQuestion){answer="I'm good thanks, what can I help you with today?";}
- else if(sharedGood && !businessQuestion){answer="Glad to hear it! Anything I can help you with?";}
- else if(sharedBad && !businessQuestion){answer="Sorry to hear that. Is there anything I can help you with?";}
- else
- if(has(/\b(how are you|how's it going|how are things|you doing alright|how do you do)\b/)){
-   answer=choose(["Hey, I'm good thanks, how about you?","Doing well thanks, how's your day going?","All good here, how about yourself?"]);
- }else if(has(/\b(what's up|wassup|sup)\b/)){
-   answer=choose(["Hey! Not much, just here to help. What's up with you?","Hey there! How's your day going?"]);
- }else if(has(/\b(i'm good|i am good|doing well|pretty good|not bad|all good|i'm fine|i am fine)\b/) && !has(/\b(quote|book|price)\b/)){
-   answer=choose(["Glad to hear it! What can I do for you?","That's good to hear! Anything I can help you with today?"]);
- }else if(has(/\b(not great|not good|terrible|rough day|bad day)\b/)){
-   answer="Ah, sorry to hear that. Is there anything I can help you sort out?";
- }else if(has(/^(hi|hey|hello|hiya|good morning|good afternoon|good evening|g'day|yo)( there)?$/)){
-   answer=choose(["Hey, how are you?","Hi there, how's your day going?","Hey, good to hear from you. How can I help?"]);
- }else if(has(/\b(are you a real person|are you human|are you ai|are you a robot|who am i speaking to|who are you)\b/)){
-   answer="I'm QuotePilot, a virtual receptionist. I can have a chat and help with enquiries. What can I do for you?";
- }else if(has(/\b(your name|what do i call you)\b/)){
-   answer="You can call me QuotePilot. And what should I call you?";
- }else if(has(/\b(quote|pricing|price|estimate|cost|how much)\b/)){
-   lastTopic='quote';
-   answer=has(/\b(lawn|mow|garden|landscap)\b/)?"Absolutely! Are you after regular garden maintenance, or is it more of a one-off job?":has(/\b(repair|fix|broken)\b/)?"Sure thing. What's happened, and what needs fixing?":"Yeah, of course. Tell me a bit about the job, and we'll take it from there.";
- }else if(has(/\b(book|booking|appointment|schedule|availability)\b/)){
-   lastTopic='booking';answer="Sure, I can help with that. What would you like to book, and when were you thinking?";
- }else if(has(/\b(opening|open today|hours|closing time|weekend hours)\b/)){
-   answer="I'd be happy to check, but this demo hasn't been connected to a business's hours yet. Can I help with anything else?";
- }else if(has(/\b(human|real person|staff member|manager|speak to someone)\b/)){
-   answer="Absolutely. When this is connected to a business, I can pass along a message. What would you like me to tell them?";
- }else if(has(/\b(thank you|thanks|cheers|appreciate it)\b/)){
-   answer=choose(["You're so welcome"+who+"! Anything else I can help with?","No worries at all! Is there anything else you need?"]);
- }else if(has(/\b(goodbye|bye|see you|that's all|that is all|nothing else)\b/)){
-   answer="No worries. Thanks for calling"+who+". Have a great rest of your day!";
- }else if(lastTopic==='quote' && has(/\b(next week|tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday|soon|next month)\b/)){
-   answer="That should give us a good starting point. What's the best way for the business to contact you about it?";
- }else if(lastTopic==='booking' && has(/\b(morning|afternoon|evening|monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow)\b/)){
-   answer="Sounds good. I can't confirm a real booking in this demo, but I can help take down the details. What name should it be under?";
- }else if(has(/^(yes|yep|yeah|sure|okay|ok|sounds good)$/)){
-   answer=lastTopic==='quote'?"Great! When were you hoping to get it done?":lastTopic==='booking'?"Lovely. Would you prefer morning or afternoon?":"Great! What can I help you with?";
- }else if(has(/^(no|nope|nah|not really)$/)){
-   answer="No worries at all. What would work better for you?";
- }else if(nameMatch){
-   answer="Nice to meet you, "+callerName+"! How can I help you today?";
- }else if(v.length<12){
-   answer=choose(["Sure, tell me a little more.","Okay, I'm listening. Go on."]);
- }else{
-   answer=choose(["Right, I see. What would you like to do next?","Got you. Could you tell me a little more about that?","That makes sense. What would be most helpful from here?"]);
+ else if(intent==='booking'){
+   if(conversation.step==='service'){conversation.service=text;conversation.step='date';answer="Sounds good. What day or time suits you?";}
+   else if(conversation.step==='date'){conversation.date=text;conversation.step='name';answer="Okay! What name should the booking be under?";}
+   else if(conversation.step==='name'){conversation.step='done';answer="Thanks. This is just a demo, so I can't confirm an actual booking, but that's how I'd collect the details.";}
+   else answer="Anything else you'd like to ask?";
  }
- if(!declined&&!pitchGiven&&questionCount>=3&&questionCount%5===3&&!/^(oh |ah |well )?(not (too |a whole )?much|nothing much|nothing really|just chilling|just looking|just browsing|just testing( it)?|just checking (it |this )?out)/.test(v)&&!askedHow&&!sharedGood&&!sharedBad&&!/\b(bye|goodbye)\b/.test(v)){answer+=' By the way, if you run a business, a receptionist like this could help you spend less time handling routine calls. Would you like to hear more?';pitchGiven=true;}lastReply=answer;questionCount++;speak(answer);
+ else if(intent==='product'){answer="That's helpful to know. A real setup could be customised for those kinds of calls. Is there anything else you'd like to try?";}
+ else if(v.length<12){answer=choose(["Okay, tell me a bit more.","Got you. Go on.","Sure, I'm listening."]);}
+ else{answer=choose(["I think I follow. Could you tell me a little more so I don't guess?","Got you. What part of that would you like help with?","Okay. Could you explain what you mean by that?"]);}
+ if(!declined&&!pitchGiven&&!hasBusiness&&!has('small')&&!has('askWell')&&!has('good')&&!has('bad')&&!has('goodbye')&&!has('no')&&questionCount===6){
+   answer+=" By the way, this demo is designed to show how QuotePilot could help with business enquiries, if you're curious.";
+   pitchGiven=true;
+ }
+ remember(text,answer);
 }
-function listen(){if(!active||speaking||listening)return;if(!SR){set('Speech recognition unavailable','Try the latest Chrome version.');note('This browser does not support SpeechRecognition');return}let r;try{r=new SR();rec=r;r.lang='en-NZ';r.continuous=false;r.interimResults=false;listening=true;set('Starting microphone…','Allow microphone access if Chrome asks');r.onstart=()=>{if(rec!==r)return;tries=0;set('Listening…','Speak now');$('orb').classList.add('active')};r.onresult=e=>{if(rec!==r||!active)return;let v=e.results[e.resultIndex]?.[0]?.transcript?.trim();if(!v)return;rec=null;listening=false;r.onend=r.onerror=null;try{r.stop()}catch(e){}$('orb').classList.remove('active');log('You',v);reply(v)};r.onerror=e=>{if(rec!==r)return;note('Speech recognition: '+e.error);if(['not-allowed','service-not-allowed','audio-capture','network'].includes(e.error)){stopRec();set('Microphone problem',e.error==='not-allowed'?'Chrome denied microphone access. Allow it in Site settings.':'Speech recognition error: '+e.error);return}};r.onend=()=>{if(rec!==r)return;rec=null;listening=false;$('orb').classList.remove('active');if(!active||speaking)return;if(++tries<=3)later(800);else set('Tap Talk Again','Chrome stopped recognition; tap to restart.')};r.start()}catch(e){listening=false;rec=null;set('Cannot use microphone','Open the website in Chrome over HTTPS.');note(e.name+': '+e.message)}}async function start(){if(active)return;active=true;tries=0;buttons();note('Secure context: '+isSecureContext+'; browser voice support: '+!!SR);callerName='';lastTopic='';questionCount=0;pitchGiven=false;declined=false;voiceLocked=false;lockedVoice=null;$('voiceChoice').disabled=true;set('Preparing voice…','Loading one consistent voice for this conversation');if(!window.speechSynthesis){note('Browser does not support speech playback');set('Speaker unavailable','This browser cannot play spoken replies.');return}const ready=await waitForVoice();if(!active)return;if(!ready){$('voiceChoice').disabled=false;set('Voice not ready','Chrome has not provided a speech voice. Try ending and starting again.');return}note('Voice selected for this call: '+lockedVoice.name);speak('Hey, how are you? Welcome to the QuotePilot demo. What can I help you with today?')}function stop(){$('voiceChoice').disabled=false;active=false;turn++;clearTimeout(timer);clearTimeout(guard);stopRec();try{speechSynthesis.cancel()}catch(e){}speaking=false;$('orb').classList.remove('active');buttons();set('Call ended','Press Start Conversation to try again')}function again(){clearTimeout(timer);clearTimeout(guard);try{speechSynthesis.cancel()}catch(e){}turn++;speaking=false;stopRec();tries=0;listen()}$('start').onclick=start;$('end').onclick=stop;$('talk').onclick=again;$('send').onclick=()=>{let v=$('message').value.trim();if(!v)return;$('message').value='';if(!active){active=true;buttons()}clearTimeout(timer);clearTimeout(guard);try{speechSynthesis.cancel()}catch(e){}speaking=false;stopRec();log('You',v);reply(v)};$('message').onkeydown=e=>{if(e.key==='Enter')$('send').click()};$('interest').onclick=()=>{$('interestmsg').hidden=false;$('interestmsg').scrollIntoView({behavior:'smooth',block:'nearest'})};window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installer=e;$('install').hidden=false;$('installhelp').textContent='Add QuotePilot to your home screen.'});$('install').onclick=async()=>{if(!installer)return;let p=installer;installer=null;$('install').hidden=true;await p.prompt()};window.addEventListener('appinstalled',()=>{$('installhelp').textContent='QuotePilot installed.'});if('serviceWorker'in navigator && location.protocol!=='file:')window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(e=>note('Offline: '+e.message)));
+function listen(){if(!active||speaking||listening)return;if(!SR){set('Speech recognition unavailable','Try the latest Chrome version.');note('This browser does not support SpeechRecognition');return}let r;try{r=new SR();rec=r;r.lang='en-NZ';r.continuous=false;r.interimResults=false;listening=true;set('Starting microphone…','Allow microphone access if Chrome asks');r.onstart=()=>{if(rec!==r)return;tries=0;set('Listening…','Speak now');$('orb').classList.add('active')};r.onresult=e=>{if(rec!==r||!active)return;let v=e.results[e.resultIndex]?.[0]?.transcript?.trim();if(!v)return;rec=null;listening=false;r.onend=r.onerror=null;try{r.stop()}catch(e){}$('orb').classList.remove('active');log('You',v);reply(v)};r.onerror=e=>{if(rec!==r)return;note('Speech recognition: '+e.error);if(['not-allowed','service-not-allowed','audio-capture','network'].includes(e.error)){stopRec();set('Microphone problem',e.error==='not-allowed'?'Chrome denied microphone access. Allow it in Site settings.':'Speech recognition error: '+e.error);return}};r.onend=()=>{if(rec!==r)return;rec=null;listening=false;$('orb').classList.remove('active');if(!active||speaking)return;if(++tries<=3)later(800);else set('Tap Talk Again','Chrome stopped recognition; tap to restart.')};r.start()}catch(e){listening=false;rec=null;set('Cannot use microphone','Open the website in Chrome over HTTPS.');note(e.name+': '+e.message)}}async function start(){if(active)return;active=true;tries=0;buttons();note('Secure context: '+isSecureContext+'; browser voice support: '+!!SR);callerName='';lastTopic='';questionCount=0;pitchGiven=false;declined=false;conversation={intent:'',step:'',service:'',date:'',contact:'',lastQuestion:'',greeted:false,turns:[]};voiceLocked=false;lockedVoice=null;$('voiceChoice').disabled=true;set('Preparing voice…','Loading one consistent voice for this conversation');if(!window.speechSynthesis){note('Browser does not support speech playback');set('Speaker unavailable','This browser cannot play spoken replies.');return}const ready=await waitForVoice();if(!active)return;if(!ready){$('voiceChoice').disabled=false;set('Voice not ready','Chrome has not provided a speech voice. Try ending and starting again.');return}note('Voice selected for this call: '+lockedVoice.name);speak('Hey, how are you? Welcome to the QuotePilot demo. What can I help you with today?')}function stop(){$('voiceChoice').disabled=false;active=false;turn++;clearTimeout(timer);clearTimeout(guard);stopRec();try{speechSynthesis.cancel()}catch(e){}speaking=false;$('orb').classList.remove('active');buttons();set('Call ended','Press Start Conversation to try again')}function again(){clearTimeout(timer);clearTimeout(guard);try{speechSynthesis.cancel()}catch(e){}turn++;speaking=false;stopRec();tries=0;listen()}$('start').onclick=start;$('end').onclick=stop;$('talk').onclick=again;$('send').onclick=()=>{let v=$('message').value.trim();if(!v)return;$('message').value='';if(!active){active=true;buttons()}clearTimeout(timer);clearTimeout(guard);try{speechSynthesis.cancel()}catch(e){}speaking=false;stopRec();log('You',v);reply(v)};$('message').onkeydown=e=>{if(e.key==='Enter')$('send').click()};$('interest').onclick=()=>{$('interestmsg').hidden=false;$('interestmsg').scrollIntoView({behavior:'smooth',block:'nearest'})};window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installer=e;$('install').hidden=false;$('installhelp').textContent='Add QuotePilot to your home screen.'});$('install').onclick=async()=>{if(!installer)return;let p=installer;installer=null;$('install').hidden=true;await p.prompt()};window.addEventListener('appinstalled',()=>{$('installhelp').textContent='QuotePilot installed.'});if('serviceWorker'in navigator && location.protocol!=='file:')window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(e=>note('Offline: '+e.message)));
 })();
 </script></body></html>
