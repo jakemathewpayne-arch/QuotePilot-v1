@@ -111,6 +111,37 @@ function reply(text){
  const who=callerName?', '+callerName:'';
  let answer='',intent=conversation.intent;
  const hasBusiness=has('quote')||has('booking')||has('purchase')||has('benefits');
+ const multi=has('quote')&&has('booking');
+ const dateMention=(v.match(/\b(today|tomorrow|next week|this week|next month|monday|tuesday|wednesday|thursday|friday|saturday|sunday|morning|afternoon|evening)\b/)||[])[0];
+ const serviceMention=(v.match(/\b(garden|gardening|lawn|landscaping|painting|plumbing|electrical|cleaning|roofing|repair|renovation|website|consultation|haircut|car|fence|fencing)\b/)||[])[0];
+ const changeMind=/\b(actually|instead|rather|changed my mind|forget that|scratch that|on second thought)\b/.test(v);
+ const clarification=/\b(what do you mean|can you explain|don't understand|i don't understand|what's that mean)\b/.test(v);
+ const privacy=/\b(what (do you|will you) do with|store my|record my|keep my|privacy|is this recorded)\b/.test(v);
+ const capability=/\b(can you|could you|are you able to|do you)\b/.test(v)&&/\b(send|email|text|call|confirm|book|schedule|take payment|pay|charge)\b/.test(v);
+ if(privacy){answer="Good question. This demo displays our conversation on your screen. It doesn't submit enquiries or messages to a business. Browser speech recognition may use your browser provider's speech service, so avoid sharing sensitive information.";}
+ else if(clarification){answer="Sure. "+(intent==='quote'?"I'm asking what job you'd like a price for.":intent==='booking'?"I'm asking what you'd like to book and when.":"I mean this is a demo of a receptionist that could help answer customer enquiries.")+" Does that make more sense?";}
+ else if(multi){conversation.intent='multi';conversation.step='';answer="Absolutely. We can go through both. Would you like to start with the quote or the booking?";}
+ else if(intent==='multi'&&/\b(quote|price|cost|estimate)\b/.test(v)){conversation.intent='quote';conversation.step='service';answer="No worries, let's start with the quote. What sort of job is it for?";}
+ else if(intent==='multi'&&/\b(book|booking|appointment)\b/.test(v)){conversation.intent='booking';conversation.step='service';answer="Sure, let's start with the booking. What would you like to book?";}
+ else if(changeMind && (intent==='quote'||intent==='booking')){
+   if(/\b(booking|appointment|book)\b/.test(v)){conversation.intent='booking';conversation.step='service';answer="No worries, let's switch to a booking. What would you like to book?";}
+   else if(/\b(quote|price|estimate)\b/.test(v)){conversation.intent='quote';conversation.step='service';answer="Of course, let's switch to a quote. What's the job?";}
+   else {conversation.intent='casual';conversation.step='';answer="That's all good, we can change course. What would you prefer to do?";}
+ }
+ else if(capability){answer="In this demo I can talk through a request, but I can't actually send messages, confirm bookings, or take payments yet. The connected business version would need those features set up.";}
+ else if(intent==='quote'&&conversation.step==='service'&&(serviceMention||v.length>22)&&!has('quote')){
+   conversation.service=text;conversation.step='date';answer="Got it"+(serviceMention?", "+serviceMention:"")+". When would you like the job done?";
+ }
+ else if(intent==='quote'&&conversation.step==='date'&&dateMention&&!has('quote')){
+   conversation.date=text;conversation.step='contact';answer="Okay, "+dateMention+" sounds good. In a real setup, I'd take contact details for a quote. For this demo, would you like to keep going without sharing any?";
+ }
+ else if(intent==='booking'&&conversation.step==='service'&&serviceMention&&!has('booking')){
+   conversation.service=text;conversation.step='date';answer="Sure, "+serviceMention+". When were you hoping to come in?";
+ }
+ else if(intent==='booking'&&conversation.step==='date'&&dateMention&&!has('booking')){
+   conversation.date=text;conversation.step='name';answer="Sounds good, "+dateMention+". What name should I put on the example booking?";
+ }
+ else
  if(has('repeat')){answer=lastReply||"Of course. I'm QuotePilot, and this is a demonstration. What would you like to try?";}
  else if(has('stop')){declined=true;conversation.intent='casual';answer="No problem at all. I won't bring up the sales side again. Feel free to chat or end the demo whenever you like.";}
  else if(has('goodbye')){answer="Thanks for chatting"+who+". Have a lovely day!";conversation.intent='closing';}
