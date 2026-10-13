@@ -13,7 +13,7 @@
 <section class="onboarding" id="subscriberOnboarding"><div class="section-title"><div><strong>After subscribing: connect your calendar</strong><p>No calendar IDs or manual setup needed in the finished version.</p></div><span class="demobadge">COMING SOON</span></div>
 <div class="onboardsteps"><span>1 · Subscription activated</span><span>2 · Set business hours</span><span>3 · Connect Google Calendar</span></div>
 <div class="calendarconnect"><div style="font-size:24px">📅</div><div><strong>Link your Google Calendar in a few clicks</strong><p>Choose your Google account, approve access, and select the calendar to use. QuotePilot could then check free times and add appointments. Linking is optional.</p><p class="setupnotice">Planned permissions: view calendar availability and create or update appointments only in calendars you approve. You'd be able to disconnect it later.</p><div class="buttons" style="justify-content:flex-start"><button type="button" id="connectPreview">Continue with Google</button><button class="secondary" type="button" id="skipCalendar">Not now</button></div><p id="connectNotice" class="setupnotice" role="status">Google sign-in preview. No calendar is connected yet.</p></div></div>
-</section><section class="setup" id="businessSetup"><div class="section-title"><div><strong>Business setup</strong><p>Set up a sample business and its availability. Saved on this device only.</p></div><span class="demobadge">SETUP PREVIEW</span></div>
+</section><section class="setup" id="mockCalendar"><div class="section-title"><div><strong>Live booking simulation</strong><p>QuotePilot checks these example appointments while you talk. This is not your real Google Calendar.</p></div><span class="demobadge">DEMO CALENDAR</span></div><div class="setupgrid"><label>View date<input type="date" id="mockDate"></label><label>Demo appointment type<input id="mockService" value="Wood restock" maxlength="65"></label></div><div id="mockSlots" class="mockslots" aria-live="polite"></div><p id="mockInfo" class="setupnotice">Try saying: “Can I book a wood restock for tomorrow at 3 PM?”</p><div class="buttons" style="justify-content:flex-start"><button id="resetMock" class="secondary" type="button">Reset demo calendar</button></div></section><section class="setup" id="businessSetup"><div class="section-title"><div><strong>Business setup</strong><p>Set up a sample business and its availability. Saved on this device only.</p></div><span class="demobadge">SETUP PREVIEW</span></div>
 <div class="setupgrid"><label>Business name<input id="bizName" maxlength="80" placeholder="Your business"></label><label>Business type<input id="bizType" maxlength="80" placeholder="e.g. Plumbing, salon"></label><label>Contact email<input type="email" id="bizEmail" maxlength="120" placeholder="business@example.com"></label><label>Appointment length<select id="bizDuration"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option><option value="90">90 minutes</option></select></label></div>
 <h3>Weekly availability</h3><div id="dayHours" class="dayhours"></div>
 <div class="buttons"><button id="saveSetup" type="button">Save setup</button><button id="sampleBooking" class="secondary" type="button">Add example booking to Google Calendar</button></div>
@@ -27,6 +27,7 @@
 body{display:block;padding:18px 12px}.app{max-width:720px;width:100%;margin:0 auto;padding:22px}.topline{display:flex;align-items:center;justify-content:space-between;gap:9px}.brand{font-size:20px;font-weight:800}.demobadge{border:1px solid #68c99c;color:#9fedbc;border-radius:20px;padding:6px 9px;letter-spacing:.06em;font-size:10px;font-weight:800;white-space:nowrap}.hero{padding:25px 0 18px}.hero h1{font-size:clamp(30px,6vw,49px);line-height:1.05;letter-spacing:-.04em;margin:0}.hero p,.why p,.cta p{color:#c0d8ca;line-height:1.55}.pillrow{display:flex;gap:7px;flex-wrap:wrap;margin-top:18px}.pillrow span{padding:7px 10px;border-radius:25px;background:#244b38;font-size:11px;color:#b9efd0}.demo-panel{background:#0a2419;border:1px solid #3c6750;border-radius:20px;padding:18px}.section-title{display:flex;justify-content:space-between;gap:15px;align-items:flex-start}.section-title strong{font-size:19px}.section-title p{font-size:12px;color:#a9d0b9;margin:8px 0 0}.pulse{width:9px;height:9px;background:#4bdd94;border-radius:50%;box-shadow:0 0 0 5px #4bdd9422;flex-shrink:0}.orb{margin:24px auto 12px}.why{padding:20px 0}.why h2,.cta h2{font-size:23px;margin-bottom:8px}.feature{border-top:1px solid #416551;padding:14px 0;display:flex;flex-direction:column;gap:6px}.feature b{font-size:14px}.feature span{font-size:13px;color:#b8d4c3}.cta{background:linear-gradient(135deg,#245b41,#123526);border:1px solid #5a9674;padding:23px;border-radius:18px}.cta button{margin-top:8px}.cta #interestmsg{font-size:13px}.installrow{padding-top:16px}.installrow small{color:#bad9c7}footer{border-top:1px solid #436351;margin-top:20px;padding:15px 0;color:#9eb5a7;font-size:11px;line-height:1.5}
  .setup{background:#0a2419;border:1px solid #3c6750;border-radius:20px;padding:20px;margin:8px 0 22px}.setup h3{font-size:16px;margin:20px 0 10px}.setupgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:18px}.setupgrid label,.dayhours label{font-size:12px;color:#bfe3ce;display:flex;flex-direction:column;gap:6px}.setup input,.setup select{width:100%;background:#061a13;color:white;border:1px solid #426653;border-radius:10px;padding:10px;font:inherit}.dayhours{display:grid;gap:8px}.dayrow{display:grid;grid-template-columns:110px 1fr 1fr;gap:9px;align-items:center}.dayrow label:first-child{flex-direction:row;align-items:center;gap:6px}.dayrow input[type=checkbox]{width:auto}.setup .buttons{justify-content:flex-start;margin-top:16px}.setupnotice,.calendarinfo p{font-size:12px;color:#b9d5c3;line-height:1.5}.calendarinfo{padding:14px;margin-top:18px;border:1px solid #3c6750;border-radius:12px;background:#102e20}.calendarinfo strong{font-size:14px}@media(max-width:500px){.setupgrid{grid-template-columns:1fr}.dayrow{grid-template-columns:80px 1fr 1fr;gap:6px}.dayrow input{padding:8px 4px}}
 .onboarding{background:linear-gradient(135deg,#173d2c,#0b291c);border:1px solid #579775;border-radius:20px;padding:20px;margin:8px 0 22px}.onboardsteps{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.onboardsteps span{background:#25513a;border-radius:10px;padding:8px 10px;color:#c0e9d1;font-size:11px}.calendarconnect{display:flex;align-items:flex-start;gap:14px;background:#0b2419;border:1px solid #3c6750;border-radius:15px;padding:18px}.calendarconnect strong{font-size:17px}.calendarconnect p,.onboarding .section-title p{color:#b9d5c3;font-size:12px;line-height:1.55}.calendarconnect .buttons button{font-size:13px;padding:11px 14px}@media(max-width:500px){.calendarconnect{flex-direction:column}}
+.mockslots{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-top:15px}.mockslot{border:1px solid #3b6951;border-radius:10px;padding:10px;font-size:12px;background:#173d2b}.mockslot.busy{background:#442b2b;border-color:#996666}.mockslot strong{display:block;margin-bottom:4px}.mockslot small{font-size:11px;margin:0}.mockslot.available small{color:#9fe8b8}.mockslot.busy small{color:#f3b8ae}
 </style>
 <script>
 (()=>{'use strict';const $=id=>document.getElementById(id),SR=window.SpeechRecognition||window.webkitSpeechRecognition;let active=false,rec=null,speaking=false,listening=false,tries=0,turn=0,guard=0,timer=0,installer=null,lockedVoice=null,voiceLocked=false,pendingSpeech='',speechWait=0,speechParts=0,monitorStream=null,monitorContext=null,monitorAnalyser=null,monitorFrame=0,monitorLoudSince=0,monitorCoolUntil=0;const set=(a,b)=>{$('status').textContent=a;$('hint').textContent=b||''};function note(t){$('diag').textContent=t}function log(w,t){let d=document.createElement('div');d.className='msg';let b=document.createElement('b');b.textContent=w;let s=document.createElement('span');s.textContent=t;d.append(b,s);$('log').append(d);$('log').scrollTop=$('log').scrollHeight}function buttons(){ $('start').hidden=active;$('end').hidden=!active;$('talk').hidden=!active;$('talk').textContent=speaking?'✋ Interrupt & Talk':'🎤 Talk Again'}function clearPending(){clearTimeout(speechWait);speechWait=0;pendingSpeech='';speechParts=0}function incomplete(t){return /(?:\b(?:and|but|because|so|for|with|about|to|the|a|an|if|when|then|that|like|need|want|help)\b|\.{2,})\s*$/i.test(t)||/\b(i (?:need|want|was going|am trying) (?:help|to)?\s*(?:with|for|about|to)?|let me think|um+|uh+)\s*$/i.test(t)}function flushSpeech(){if(!active||!pendingSpeech)return;const t=pendingSpeech;clearPending();stopRec();$('orb').classList.remove('active');log('You',t);reply(t)}function queueSpeech(t){if(!t)return;pendingSpeech=(pendingSpeech+' '+t).trim();speechParts++;clearTimeout(speechWait);set('Listening…','Take your time. I’ll wait until you finish.');speechWait=setTimeout(flushSpeech,incomplete(pendingSpeech)?3900:1750)}function stopRec(){if(rec){let r=rec;rec=null;r.onend=r.onerror=r.onresult=null;try{r.abort()}catch(e){}}listening=false}function later(ms){clearTimeout(timer);if(active&&!speaking)timer=setTimeout(listen,ms)}function finished(n){if(!active||turn!==n||!speaking)return;clearTimeout(guard);speaking=false;buttons();set('Listening…','Speak after the microphone activates');later(50)}function voiceKey(v){return v.voiceURI+'|'+v.name+'|'+v.lang}
@@ -149,12 +150,65 @@ const patterns={
 function normalize(text){return text.toLowerCase().replace(/[!?.,]/g,' ').replace(/\s+/g,' ').trim()}
 function choose(options){return options[questionCount%options.length]}
 function remember(user,answer){conversation.turns.push({user,answer});if(conversation.turns.length>10)conversation.turns.shift();lastReply=answer;questionCount++;speak(answer)}
+const demoBookings={};
+let offer=null;
+function dayKey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function demoDay(text){
+ const n=normalize(text),now=new Date();let d=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+ const days=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+ if(/\bday after tomorrow\b/.test(n))d.setDate(d.getDate()+2);
+ else if(/\btomorrow\b/.test(n))d.setDate(d.getDate()+1);
+ else if(/\bnext week\b/.test(n))d.setDate(d.getDate()+7);
+ else {const day=days.findIndex(x=>new RegExp('\\b'+x+'\\b').test(n));if(day>=0){let delta=(day-d.getDay()+7)%7;if(!delta||n.includes('next '+days[day]))delta+=7;d.setDate(d.getDate()+delta)}else{const m=n.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);if(m){const candidate=new Date(+m[1],+m[2]-1,+m[3]);if(candidate.getFullYear()===+m[1]&&candidate.getMonth()===+m[2]-1&&candidate.getDate()===+m[3])d=candidate;else return null}else if(!/\btoday\b/.test(n))return null}}
+ return dayKey(d);
+}
+function demoTime(text){
+ const n=normalize(text);
+ const words={one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12};
+ const m=n.match(/\b(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*(a\.?m\.?|p\.?m\.?|o'clock|in the morning|in the afternoon|in the evening)?\b/)||n.match(/\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)(?:\s+(thirty|fifteen))?\s*(am|pm|o'clock|in the morning|in the afternoon|in the evening)?\b/);
+ if(!m)return null;
+ let h=words[m[1]]||Number(m[1]),mins=m[2]==='thirty'?30:m[2]==='fifteen'?15:Number(m[2]||0),tail=(m[3]||'').toLowerCase();
+ if(/pm|afternoon|evening/.test(tail))h=h%12+12;
+ else if(/am|morning/.test(tail))h=h%12;
+ else if(h>=1&&h<=6)h+=12;
+ return h*60+mins;
+}
+function timeLabel(min){const h=Math.floor(min/60),m=min%60;return (h%12||12)+(m?':'+String(m).padStart(2,'0'):'')+(h<12?' AM':' PM')}
+function booked(day,time){return (demoBookings[day]||[]).includes(time)||time===900}
+function available(day,time){const d=new Date(day+'T12:00:00');if(Number.isNaN(+d))return false;const today=dayKey(new Date());return day>=today&&time>=540&&time<1020&&time%30===0&&!booked(day,time)}
+function nextSlot(day,time){for(let t=Math.max(540,Math.ceil((time+30)/30)*30);t<1020;t+=30)if(available(day,t))return t;for(let t=540;t<time;t+=30)if(available(day,t))return t;return null}
+function renderDemo(){
+ const el=$('mockDate');if(!el)return;
+ const day=el.value||dayKey(new Date());el.value=day;
+ const slots=$('mockSlots');slots.replaceChildren();
+ for(let t=540;t<1020;t+=60){const free=available(day,t);const div=document.createElement('div');div.className='mockslot '+(free?'available':'busy');div.innerHTML='<strong>'+timeLabel(t)+'</strong><small>'+(free?'Available':'Unavailable')+'</small>';slots.append(div)}
+}
+function demoBookingResponse(raw){
+ const v=normalize(raw),hasBooking=/\b(book|booking|restock|appointment|schedule|available|availability|slot|time|reschedule)\b/.test(v);
+ if(!hasBooking && conversation.intent!=='calendar')return null;
+ const date=demoDay(raw)||offer?.day||conversation.date||null;
+ const time=demoTime(raw);
+ const no=/\b(no|nope|nah|doesn't work|does not work|can't do|cannot do|another time|something else)\b/.test(v);
+ const yes=/\b(yes|yep|yeah|sure|sounds good|that works|book it|please do|go ahead|perfect|okay)\b/.test(v);
+ if(offer&&no&&!hasBooking&&time===null){const old=offer.time;const alt=nextSlot(offer.day,old);if(alt===null)return "No problem. That day's looking pretty full. Would another day suit you?";offer.time=alt;renderDemo();return "No worries. How about "+timeLabel(alt)+" instead?";}
+ if(offer&&yes&&time===null){if(!available(offer.day,offer.time)){const alt=nextSlot(offer.day,offer.time);if(alt===null)return "Sorry, that slot has just become unavailable. Could we try another day?";offer.time=alt;return "That time is taken now. How about "+timeLabel(alt)+"?";}if(!demoBookings[offer.day])demoBookings[offer.day]=[];demoBookings[offer.day].push(offer.time);const bookedText="All set — I've added a "+offer.service+" demo appointment for "+offer.day+" at "+timeLabel(offer.time)+". It's only in this example calendar, not Google Calendar.";conversation.intent='casual';offer=null;renderDemo();return bookedText}
+ if(!hasBooking&&time===null)return null;
+ conversation.intent='calendar';
+ const service=/\bwood|restock\b/.test(v)?'wood restock':offer?.service||$('mockService')?.value||'appointment';
+ if(!date){conversation.step='date';return "Sure! Which day would you like to come in?";}
+ conversation.date=date;$('mockDate').value=date;renderDemo();
+ if(time===null){conversation.step='time';return "Of course. What time on "+date+" would suit you?";}
+ if(!available(date,time)){const alt=nextSlot(date,time);offer=alt===null?null:{day:date,time:alt,service};conversation.step='offer';return alt===null?"Sorry, "+date+" is fully booked in this demo. Do you have another day in mind?":"Sorry, "+timeLabel(time)+" isn't available on "+date+". I can do "+timeLabel(alt)+" instead. Would you like me to book that in?";}
+ offer={day:date,time,service};conversation.step='offer';return timeLabel(time)+" on "+date+" is available for a "+service+". Would you like me to book that in?";
+}
+$('mockDate').value=dayKey(new Date());$('mockDate').onchange=renderDemo;$('resetMock').onclick=()=>{for(const k of Object.keys(demoBookings))delete demoBookings[k];offer=null;conversation.intent='casual';renderDemo();$('mockInfo').textContent='Example appointments reset.'};renderDemo();
 function reply(text){
  const v=normalize(text),has=(key)=>patterns[key].test(v);
  const nm=text.match(patterns.name);
  if(nm)callerName=nm[2];
  const who=callerName?', '+callerName:'';
  let answer='',intent=conversation.intent;
+ const calendarAnswer=demoBookingResponse(text);if(calendarAnswer){remember(text,calendarAnswer);return}
  const hasBusiness=has('quote')||has('booking')||has('purchase')||has('benefits');
  const multi=has('quote')&&has('booking');
  const dateMention=(v.match(/\b(today|tomorrow|next week|this week|next month|monday|tuesday|wednesday|thursday|friday|saturday|sunday|morning|afternoon|evening)\b/)||[])[0];
