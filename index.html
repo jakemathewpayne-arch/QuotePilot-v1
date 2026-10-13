@@ -13,7 +13,7 @@
 <section class="onboarding" id="subscriberOnboarding"><div class="section-title"><div><strong>After subscribing: connect your calendar</strong><p>No calendar IDs or manual setup needed in the finished version.</p></div><span class="demobadge">COMING SOON</span></div>
 <div class="onboardsteps"><span>1 · Subscription activated</span><span>2 · Set business hours</span><span>3 · Connect Google Calendar</span></div>
 <div class="calendarconnect"><div style="font-size:24px">📅</div><div><strong>Link your Google Calendar in a few clicks</strong><p>Choose your Google account, approve access, and select the calendar to use. QuotePilot could then check free times and add appointments. Linking is optional.</p><p class="setupnotice">Planned permissions: view calendar availability and create or update appointments only in calendars you approve. You'd be able to disconnect it later.</p><div class="buttons" style="justify-content:flex-start"><button type="button" id="connectPreview">Continue with Google</button><button type="button" id="disconnectGoogle" class="secondary" hidden>Disconnect</button><button class="secondary" type="button" id="skipCalendar">Not now</button></div><p id="connectNotice" class="setupnotice" role="status">Not connected. A Google OAuth Client ID is required to enable secure sign-in.</p><details style="margin-top:12px"><summary style="font-size:12px;cursor:pointer">Developer setup: Google OAuth Client ID</summary><p class="setupnotice">Create a Web application OAuth client in Google Cloud, enable Google Calendar API, and add https://jakemathewpayne-arch.github.io as an authorised JavaScript origin. Enter the public Client ID below (never a client secret).</p><input id="oauthClientId" style="width:100%;background:#061a13;border:1px solid #426653;border-radius:10px;color:#fff;padding:10px" placeholder="Google OAuth Web Client ID"><button id="saveOAuthClient" class="secondary" type="button" style="margin-top:8px">Save Client ID on this device</button></details><div id="googleCalendars" class="setupnotice"></div></div></div>
-</section><section class="setup" id="mockCalendar"><div class="section-title"><div><strong>Live booking simulation</strong><p>QuotePilot checks these example appointments while you talk. This is not your real Google Calendar.</p></div><span class="demobadge">DEMO CALENDAR</span></div><div class="setupgrid"><label>View date<input type="date" id="mockDate"></label><label>Demo appointment type<input id="mockService" value="Wood restock" maxlength="65"></label></div><div id="mockSlots" class="mockslots" aria-live="polite"></div><p id="mockInfo" class="setupnotice">Try saying: “Can I book a wood restock for tomorrow at 3 PM?”</p><div class="buttons" style="justify-content:flex-start"><button id="resetMock" class="secondary" type="button">Reset demo calendar</button></div></section><section class="setup" id="businessSetup"><div class="section-title"><div><strong>Business setup</strong><p>Set up a sample business and its availability. Saved on this device only.</p></div><span class="demobadge">SETUP PREVIEW</span></div>
+</section><section class="setup" id="mockCalendar"><div class="section-title"><div><strong>Live booking simulation</strong><p>QuotePilot checks these example appointments while you talk. This is not your real Google Calendar.</p></div><span class="demobadge">DEMO CALENDAR</span></div><div class="setupgrid"><label>View date<input type="date" id="mockDate"></label><label>Demo appointment type<input id="mockService" value="Wood restock" maxlength="65"></label></div><div id="mockSlots" class="mockslots" aria-live="polite"></div><p id="mockInfo" class="setupnotice">Owner: “I’m available this week from 9 to 5.” Customer: “Can I book a wood restock for tomorrow at 3 PM?”</p><div id="ownerSchedule" class="setupnotice" aria-live="polite"></div><div class="buttons" style="justify-content:flex-start"><button id="resetMock" class="secondary" type="button">Reset demo calendar</button></div></section><section class="setup" id="businessSetup"><div class="section-title"><div><strong>Business setup</strong><p>Set up a sample business and its availability. Saved on this device only.</p></div><span class="demobadge">SETUP PREVIEW</span></div>
 <div class="setupgrid"><label>Business name<input id="bizName" maxlength="80" placeholder="Your business"></label><label>Business type<input id="bizType" maxlength="80" placeholder="e.g. Plumbing, salon"></label><label>Contact email<input type="email" id="bizEmail" maxlength="120" placeholder="business@example.com"></label><label>Appointment length<select id="bizDuration"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option><option value="90">90 minutes</option></select></label></div>
 <h3>Weekly availability</h3><div id="dayHours" class="dayhours"></div>
 <div class="buttons"><button id="saveSetup" type="button">Save setup</button><button id="sampleBooking" class="secondary" type="button">Add example booking to Google Calendar</button></div>
@@ -151,6 +151,46 @@ function normalize(text){return text.toLowerCase().replace(/[!?.,]/g,' ').replac
 function choose(options){return options[questionCount%options.length]}
 function remember(user,answer){conversation.turns.push({user,answer});if(conversation.turns.length>10)conversation.turns.shift();lastReply=answer;questionCount++;speak(answer)}
 const demoBookings={};
+const availabilityOverrides={};
+try{const cached=JSON.parse(localStorage.getItem('quotepilot-demo-hours')||'{}');for(const [key,value] of Object.entries(cached))if(/^\d{4}-\d{2}-\d{2}$/.test(key)&&Array.isArray(value))availabilityOverrides[key]=value}catch(e){}
+function saveHours(){try{localStorage.setItem('quotepilot-demo-hours',JSON.stringify(availabilityOverrides))}catch(e){}}
+function datePlus(d,add){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()+add);return dayKey(x)}
+function parseClock(s){
+ const n=s.trim().toLowerCase().replace(/\./g,'');
+ const words={one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12};
+ const m=n.match(/^(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/);
+ if(!m)return null;let h=words[m[1]]||Number(m[1]),minute=+(m[2]||0);
+ if(h>23||minute>59)return null;
+ if(m[3]==='pm')h=h%12+12;else if(m[3]==='am')h=h%12;
+ return h*60+minute;
+}
+function ownerHours(raw){
+ const v=normalize(raw);
+ if(!/\b(i'm|i am|we're|we are|our business|the shop)\b/.test(v)||!/\b(available|open|closed|unavailable|working|hours)\b/.test(v))return null;
+ if(!/\b(this week|next week|today|tomorrow|every day|weekdays|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/.test(v))return null;
+ const dates=[],now=new Date(),today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+ if(/\b(this week|next week|weekdays|every day)\b/.test(v)){
+  const offset=/\bnext week\b/.test(v)?7:0;
+  const monday=new Date(today.getFullYear(),today.getMonth(),today.getDate()-(today.getDay()+6)%7+offset);
+  for(let i=0;i<7;i++)if(!/\bweekdays\b/.test(v)||i<5){const date=dayKey(new Date(monday.getFullYear(),monday.getMonth(),monday.getDate()+i));if(date>=dayKey(today))dates.push(date)}
+ }else{const date=demoDay(raw);if(date)dates.push(date)}
+ if(!dates.length)return "I couldn't find an upcoming date. Try saying, 'I'm available tomorrow from 9 to 5.'";
+ const closed=/\b(closed|unavailable|not available)\b/.test(v);
+ let start=540,end=1020;
+ if(!closed){
+  const m=v.match(/\b(?:from|between)\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\d{1,2}(?::\d{2})?)\s*(am|pm)?\s+(?:to|until|and|-)\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\d{1,2}(?::\d{2})?)\s*(am|pm)?\b/);
+  if(!m)return "Sure, what hours should I set? For example, 'I'm available this week from 9 to 5.'";
+  start=parseClock(m[1]+(m[2]||''));end=parseClock(m[3]+(m[4]||''));
+  if(start===null||end===null)return "Sorry, I didn't understand those hours. Could you say them again?";
+  if(end<=start && end<720)end+=720;
+  if(start<360||end>1440||end<=start)return "Could you give me a daytime start and end time, like 9 AM to 5 PM?";
+ }
+ for(const day of dates)availabilityOverrides[day]=closed?[]:[[start,end]];
+ saveHours();renderDemo();
+ $('mockInfo').textContent=closed?'Marked '+dates.length+' day(s) unavailable.':'Updated '+dates.length+' day(s): '+timeLabel(start)+' to '+timeLabel(end)+'.';
+ return closed?"No worries, I've marked those days unavailable in the QuotePilot demo calendar.":"Done! I've set your demo availability from "+timeLabel(start)+" to "+timeLabel(end)+" for "+dates.length+" day"+(dates.length===1?'':'s')+". You can see the changes below.";
+}
+
 let offer=null;
 function dayKey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function demoDay(text){
@@ -175,12 +215,12 @@ function demoTime(text){
 }
 function timeLabel(min){const h=Math.floor(min/60),m=min%60;return (h%12||12)+(m?':'+String(m).padStart(2,'0'):'')+(h<12?' AM':' PM')}
 function booked(day,time){return (demoBookings[day]||[]).includes(time)||time===900}
-function available(day,time){const d=new Date(day+'T12:00:00');if(Number.isNaN(+d))return false;const today=dayKey(new Date());return day>=today&&time>=540&&time<1020&&time%30===0&&!booked(day,time)}
+function available(day,time){const d=new Date(day+'T12:00:00');if(Number.isNaN(+d))return false;const today=dayKey(new Date());return day>=today&&time%30===0&&(Object.prototype.hasOwnProperty.call(availabilityOverrides,day)?availabilityOverrides[day].some(([a,b])=>time>=a&&time+30<=b):(time>=540&&time<1020))&&!booked(day,time)}
 function nextSlot(day,time){for(let t=Math.max(540,Math.ceil((time+60)/60)*60);t<1020;t+=60)if(available(day,t))return t;for(let t=540;t<1020;t+=60)if(t!==time&&available(day,t))return t;return null}
 function renderDemo(){
  const el=$('mockDate');if(!el)return;
  const day=el.value||dayKey(new Date());el.value=day;
- const slots=$('mockSlots');slots.replaceChildren();
+ const slots=$('mockSlots');slots.replaceChildren();$('ownerSchedule').textContent=Object.prototype.hasOwnProperty.call(availabilityOverrides,day)?(availabilityOverrides[day].length?'Your hours: '+availabilityOverrides[day].map(([a,b])=>timeLabel(a)+'–'+timeLabel(b)).join(', '):'Marked unavailable for this date.'):'Demo default: 9 AM–5 PM.';
  for(let t=540;t<1020;t+=60){const free=available(day,t);const div=document.createElement('div');div.className='mockslot '+(free?'available':'busy');div.innerHTML='<strong>'+timeLabel(t)+'</strong><small>'+(free?'Available':'Unavailable')+'</small>';slots.append(div)}
 }
 function demoBookingResponse(raw){
@@ -201,13 +241,14 @@ function demoBookingResponse(raw){
  if(!available(date,time)){const alt=nextSlot(date,time);offer=alt===null?null:{day:date,time:alt,service};conversation.step='offer';return alt===null?"Sorry, "+date+" is fully booked in this demo. Do you have another day in mind?":"Sorry, "+timeLabel(time)+" isn't available on "+date+". I can do "+timeLabel(alt)+" instead. Would you like me to book that in?";}
  offer={day:date,time,service};conversation.step='offer';return timeLabel(time)+" on "+date+" is available for a "+service+". Would you like me to book that in?";
 }
-$('mockDate').value=dayKey(new Date());$('mockDate').onchange=renderDemo;$('resetMock').onclick=()=>{for(const k of Object.keys(demoBookings))delete demoBookings[k];offer=null;conversation.intent='casual';renderDemo();$('mockInfo').textContent='Example appointments reset.'};renderDemo();
+$('mockDate').value=dayKey(new Date());$('mockDate').onchange=renderDemo;$('resetMock').onclick=()=>{for(const k of Object.keys(demoBookings))delete demoBookings[k];for(const k of Object.keys(availabilityOverrides))delete availabilityOverrides[k];saveHours();offer=null;conversation.intent='casual';renderDemo();$('mockInfo').textContent='Example appointments reset.'};renderDemo();
 function reply(text){
  const v=normalize(text),has=(key)=>patterns[key].test(v);
  const nm=text.match(patterns.name);
  if(nm)callerName=nm[2];
  const who=callerName?', '+callerName:'';
  let answer='',intent=conversation.intent;
+ const hoursAnswer=ownerHours(text);if(hoursAnswer){remember(text,hoursAnswer);return}
  const calendarAnswer=demoBookingResponse(text);if(calendarAnswer){remember(text,calendarAnswer);return}
  const hasBusiness=has('quote')||has('booking')||has('purchase')||has('benefits');
  const multi=has('quote')&&has('booking');
